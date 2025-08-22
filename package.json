@@ -6,6 +6,12 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "body-parser": "^2.2.0"
-  }
+    "body-parser": "^2.2.0",
+    "express": "^5.1.0"
+  },
+  "description": "[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/eIxzViyx)\r # Course Enrollment System — Mid‑Semester Practical",
+  "main": "server.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }

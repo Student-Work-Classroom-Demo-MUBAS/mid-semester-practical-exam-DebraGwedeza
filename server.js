@@ -1,27 +1,27 @@
-// === MegaUniversity — Course Enrollment (Starter with TODOs) ===
 const express = require('express');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 
-/* ===== Middleware (order matters) ===== */
-
-// Use built-in body parser for HTML forms
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, "public")));
 
 /* ===== In-memory data ===== */
 const availableCourses = [
   { code: "CS401", name: "Advanced Web Development", instructor: "Dr. Smith", credits: 3, capacity: 30 },
-  { code: "CS402", name: "Database Systems",          instructor: "Dr. Patel", credits: 3, capacity: 35 },
-  { code: "CS403", name: "Software Engineering",      instructor: "Dr. Lee",   credits: 3, capacity: 40 },
-  { code: "CS404", name: "Computer Networks",         instructor: "Dr. Zhao",  credits: 3, capacity: 30 },
-  { code: "CS405", name: "Artificial Intelligence",   instructor: "Dr. Gomez", credits: 3, capacity: 25 }
+  { code: "CS402", name: "Database Systems", instructor: "Dr. Patel", credits: 3, capacity: 35 },
+  { code: "CS403", name: "Software Engineering", instructor: "Dr. Lee", credits: 3, capacity: 40 },
+  { code: "CS404", name: "Computer Networks", instructor: "Dr. Zhao", credits: 3, capacity: 30 },
+  { code: "CS405", name: "Artificial Intelligence", instructor: "Dr. Gomez", credits: 3, capacity: 25 }
 ];
-const enrollments = []; // { id, studentName, studentId, courseCode, courseName, semester, reason, enrollmentDate }
+const enrollments = [];
 let enrollmentIdCounter = 1;
 
-/* ===== Helpers ===== */
+const escape = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const studentIdOk = id => /^\d{4}-\d{4}$/.test(String(id || ''));
+const courseByCode = code => availableCourses.find(c => c.code === code);
+
 const page = (title, body) => `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>${title}</title><link rel="stylesheet" href="/css/style.css"/></head>
@@ -38,23 +38,47 @@ const page = (title, body) => `<!doctype html>
   <footer class="footer"><small>Complete the TODOs in server.js, index.html, and style.css.</small></footer>
 </body></html>`;
 
-const escape = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
-const studentIdOk = id => /^\d{4}-\d{4}$/.test(String(id || ''));
-const courseByCode = code => availableCourses.find(c => c.code === code);
-
 /* ===== Routes ===== */
-// Home -> static form (index.html)
+
+// Home page
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
-// Server-rendered enrollments list (no JSON)
+// Handle enrollment
+app.post('/enroll', (req, res) => {
+  const { studentName, studentId, courseCode, semester, reason } = req.body;
+
+  if (!studentName || !studentId || !courseCode || !semester || !studentIdOk(studentId)) {
+    return res.status(400).send(page('Error', `<h2>Invalid input</h2><p><a href="/">Back</a></p>`));
+  }
+
+  const course = courseByCode(courseCode);
+  if (!course) {
+    return res.status(400).send(page('Error', `<h2>Course not found</h2><p><a href="/">Back</a></p>`));
+  }
+
+  const newEnroll = {
+    id: enrollmentIdCounter++,
+    studentName: escape(studentName),
+    studentId: escape(studentId),
+    courseCode: escape(courseCode),
+    courseName: escape(course.name),
+    semester: escape(semester),
+    reason: escape(reason || ''),
+    enrollmentDate: Date.now()
+  };
+
+  enrollments.push(newEnroll);
+  res.redirect('/enrollments');
+});
+
+// Enrollments list
 app.get('/enrollments', (req, res) => {
   const rows = enrollments.map((e, i) => `
     <tr>
-      <td>${i+1}</td>
+      <td>${i + 1}</td>
       <td>${escape(e.studentName)}</td>
       <td>${escape(e.studentId)}</td>
-      <td>${escape(e.courseCode)} — ${escape(e.courseName || '')}</td>
+      <td>${escape(e.courseCode)} — ${escape(e.courseName)}</td>
       <td>${escape(e.semester)}</td>
       <td>${new Date(e.enrollmentDate).toLocaleString()}</td>
       <td>
@@ -79,7 +103,7 @@ app.get('/enrollments', (req, res) => {
   res.send(page('Enrollments', body));
 });
 
-// Server-rendered courses list
+// Courses list
 app.get('/courses', (req, res) => {
   const cards = availableCourses.map(c => `
     <article class="card">
@@ -94,72 +118,19 @@ app.get('/courses', (req, res) => {
   res.send(page('Courses', body));
 });
 
-// Handle enrollment via standard form POST (uses req.body only)
-app.post('/enroll', (req, res) => {
-  const {studentName,studentId,courseCode,semester,reason}=req.body;
-  if(!studentName||!studentId|| !courseCode || !semester || !studentIdOk(studentId)){
-    const errorMsg = <h2>Invalid submission</h2>
-    <p>Please ensure that all the required fields are filled correctly</p>
-    <p><a href = "/">Back</a></p>
-    return res.status(400).send(Page("Error", errorMsg));
-  }
-  // TODO:
-  // 1) Read fields from req.body: studentName, studentId, courseCode, semester, reason(optional)
-  // 2) Validate: required fields; studentId matches YYYY-NNNN; course exists
-  // 3) Create enrollment object; push; increment id
-  // 4) Redirect to /enrollments on success; otherwise show error page with Back link
-  const course = courseByCode(courseCode);
-  const newEnroll = {
-    id: enrollmentIdCounter++,
-    studentName: escape(studentName), 
-    studentId: escape(studentId), 
-    courseCode: escape(courseCode),
-    courseName: escape(course.name)
-    semester: escape(reason||),
-    enrollmentDate: Date.now()
-  };
-
-  /* Example shape to build (DO NOT UNCOMMENT — for reference only)
-  const course = courseByCode(courseCode);
-  const newEnroll = {
-    id: enrollmentIdCounter++,
-    studentName, studentId, courseCode, courseName: course.name,
-    semester, reason, enrollmentDate: Date.now()
-  };*/
-  enrollments.push(newEnroll);
-  res.redirect('/enrollments');
-
-  /*enrollments.push(newEnroll);
-  res.redirect('/enrollments');
-  */
-  return res.status(501).send(page('Not Implemented', '<p class="muted">TODO: implement /enroll using req.body</p><p><a href="/">Back</a></p>'));
-});
-
-// Unenroll (form POST)
+// Unenroll
 app.post('/unenroll/:id', (req, res) => {
   const id = parseInt(req.params.id);
-  const index = enrollments.findIndex(e => e.id ===);
+  const index = enrollments.findIndex(e => e.id === id);
 
-  if (index !== -1){
+  if (index !== -1) {
     enrollments.splice(index, 1);
-    return res.redirect('/enrollments')
   }
-  // TODO:
-  // 1) Parse id from req.params
-  // 2) Remove matching enrollment from array if found
-  // 3) Redirect back to /enrollments (or show error)
-const errorMsg = <h2> Enrollment not found</h2>
-   <p>No enrollment matches the provided ID.</p>
-   <p><a href="/enrollments">Back</a></p>
-   res.status(404).send(page("Error",errorMsg));
 
-  // return res.status(501).send(page('Not Implemented', '<p class="muted">TODO: implement /unenroll/:id</p><p><a href="/enrollments">Back</a></p>'));
+  res.redirect('/enrollments');
 });
 
-// Static last so dynamic routes above take priority
-app.use(express.static(path.join(__dirname, 'public')));
-
-// 404
+// 404 handler
 app.use((req, res) => res.status(404).send(page('Not Found', '<p>Page not found.</p>')));
 
 app.listen(PORT, () => console.log(`Starter running on http://localhost:${PORT}`));
